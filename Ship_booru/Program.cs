@@ -20,12 +20,24 @@ namespace Ship_booru
 
             Dictionary<string, Dictionary<string, List<Entry>>> allEntries = new Dictionary<string, Dictionary<string, List<Entry>>>();
             List<int> alreadyAsked = new List<int>(); // Ids already asked
+            List<string> charactersAlreadyAsked = new List<string>();
 
             var booru = new Gelbooru();
 
-            var result = await booru.GetRandomPostsAsync(int.MaxValue, new[] { "yuri", "2girls", entryCharacter });
 
             Dictionary<string, bool> characters = new Dictionary<string, bool>(); // Is a tag a character
+
+            List<string> remainingCharacters = new List<string>
+            {
+                entryCharacter
+            };
+
+        next:
+            string current = remainingCharacters[0];
+            charactersAlreadyAsked.Add(current);
+            remainingCharacters.RemoveAt(0);
+
+            var result = await booru.GetRandomPostsAsync(int.MaxValue, new[] { "yuri", "2girls", current });
 
             foreach (var r in result)
             {
@@ -69,13 +81,16 @@ namespace Ship_booru
                     string c1 = Regex.Replace(imageCharacs[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
                     string c2 = Regex.Replace(imageCharacs[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
 
+                    if (c1.Contains("admiral") || c2.Contains("admiral")) // TODO: Put that elsewhere
+                        continue;
+
                     if (!allEntries.ContainsKey(c1))
                         allEntries.Add(c1, new Dictionary<string, List<Entry>>());
 
                     if (!allEntries[c1].ContainsKey(c2))
                         allEntries[c1].Add(c2, new List<Entry>());
 
-                    if (allEntries[c1][c2].Count < 2)
+                    if (allEntries[c1][c2].Count < 3)
                         allEntries[c1][c2].Add(
                             new Entry
                             {
@@ -84,6 +99,15 @@ namespace Ship_booru
                                 linkType = "gelbooru",
                                 nsfw = (int)r.rating
                             });
+
+                    foreach (string s in imageCharacs)
+                    {
+                        if (!charactersAlreadyAsked.Contains(s))
+                        {
+                            charactersAlreadyAsked.Add(s);
+                            remainingCharacters.Add(s);
+                        }
+                    }
 
                     Console.WriteLine($"Found relation between {c1} and {c2}.");
                 }
@@ -97,6 +121,9 @@ namespace Ship_booru
             }));
 
             Console.WriteLine("JSON saved\n\n");
+
+            if (remainingCharacters.Count > 0)
+                goto next;
 
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
