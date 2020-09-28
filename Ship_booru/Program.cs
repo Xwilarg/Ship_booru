@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Ship_booru
@@ -15,7 +16,7 @@ namespace Ship_booru
         static async Task Main(string[] args)
         {
             var entryCharacter = "ikazuchi_(kantai_collection)"; // First search
-            var entryAnime = "kantai_collection";
+            var entryAnime = "kancolle";
 
             Dictionary<string, Dictionary<string, List<Entry>>> allEntries = new Dictionary<string, Dictionary<string, List<Entry>>>();
             List<int> alreadyAsked = new List<int>(); // Ids already asked
@@ -37,7 +38,7 @@ namespace Ship_booru
 
                 foreach (var t in r.tags)
                 {
-                    if (characters.ContainsKey(t))
+                    if (characters.ContainsKey(t)) // TODO: Manage series
                     {
                         if (characters[t])
                             imageCharacs.Add(t);
@@ -65,21 +66,24 @@ namespace Ship_booru
                 if (imageCharacs.Count == 2)
                 {
                     imageCharacs.OrderBy(x => x);
-                    string c1 = imageCharacs[0];
-                    string c2 = imageCharacs[1];
+                    string c1 = Regex.Replace(imageCharacs[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
+                    string c2 = Regex.Replace(imageCharacs[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
 
                     if (!allEntries.ContainsKey(c1))
                         allEntries.Add(c1, new Dictionary<string, List<Entry>>());
 
                     if (!allEntries[c1].ContainsKey(c2))
-                        allEntries[c1].Add(c2, new List<Entry>() {
+                        allEntries[c1].Add(c2, new List<Entry>());
+
+                    if (allEntries[c1][c2].Count < 2)
+                        allEntries[c1][c2].Add(
                             new Entry
                             {
                                 link = r.postUrl.AbsoluteUri,
-                                linkType = r.fileUrl.AbsoluteUri,
+                                imageId = r.fileUrl.AbsoluteUri,
+                                linkType = "gelbooru",
                                 nsfw = (int)r.rating
-                            }
-                        });
+                            });
 
                     Console.WriteLine($"Found relation between {c1} and {c2}.");
                 }
@@ -109,6 +113,7 @@ namespace Ship_booru
     public struct Entry
     {
         public int nsfw;
+        public string imageId;
         public string linkType;
         public string link;
     }
