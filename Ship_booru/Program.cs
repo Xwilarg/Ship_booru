@@ -4,6 +4,7 @@ using BooruSharp.Search.Tag;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -16,28 +17,36 @@ namespace Ship_booru
         static async Task Main(string[] args)
         {
             var entryCharacter = "ikazuchi_(kantai_collection)"; // First search
-            var entryAnime = "kancolle";
+            var entryAnime = "kantai_collection";
 
-            Dictionary<string, Dictionary<string, List<Entry>>> allEntries = new Dictionary<string, Dictionary<string, List<Entry>>>();
+            Dictionary<string, Json> allEntries = new Dictionary<string, Json>();
             List<int> alreadyAsked = new List<int>(); // Ids already asked
             List<string> charactersAlreadyAsked = new List<string>();
 
             var booru = new Gelbooru();
+            var rand = new Random();
 
+            Dictionary<string, TagType> tags = new Dictionary<string, TagType>();
 
-            Dictionary<string, bool> characters = new Dictionary<string, bool>(); // Is a tag a character
-
-            List<string> remainingCharacters = new List<string>
+            List<(string, string)> remainingCharacters = new List<(string, string)>
             {
-                entryCharacter
+                (entryCharacter, entryAnime)
             };
 
+            if (Directory.Exists("Result"))
+            {
+                foreach (var file in Directory.GetFiles("Result"))
+                    File.Delete(file);
+            }
+            else
+                Directory.CreateDirectory("Result");
+
         next:
-            string current = remainingCharacters[0];
-            charactersAlreadyAsked.Add(current);
+            var current = remainingCharacters[0];
+            charactersAlreadyAsked.Add(current.Item1);
             remainingCharacters.RemoveAt(0);
 
-            var result = await booru.GetRandomPostsAsync(int.MaxValue, new[] { "yuri", "2girls", current });
+            var result = await booru.GetRandomPostsAsync(int.MaxValue, new[] { "yuri", "2girls", current.Item1 });
 
             foreach (var r in result)
             {
@@ -46,14 +55,18 @@ namespace Ship_booru
 
                 alreadyAsked.Add(r.id);
 
-                List<string> imageCharacs = new List<string>();
+                List<string> licences = new List<string>();
+                List<string> characters = new List<string>();
 
                 foreach (var t in r.tags)
                 {
-                    if (characters.ContainsKey(t)) // TODO: Manage series
+                    if (tags.ContainsKey(t)) // TODO: Manage series
                     {
-                        if (characters[t])
-                            imageCharacs.Add(t);
+                        var tag = tags[t];
+                        if (tag == TagType.Character)
+                            characters.Add(t);
+                        else if (tag == TagType.Copyright)
+                            licences.Add(t);
                         continue;
                     }
 
@@ -70,28 +83,56 @@ namespace Ship_booru
                         throw;
                     }
 
-                    characters.Add(t, tagRes.type == TagType.Character);
+                    tags.Add(t, tagRes.type);
                     if (tagRes.type == TagType.Character)
-                        imageCharacs.Add(t);
+                        characters.Add(t);
+                    else if (tagRes.type == TagType.Copyright)
+                        licences.Add(t);
                 }
 
-                if (imageCharacs.Count == 2)
+                if (characters.Any(x => x.Contains("admiral"))) // TODO: Put that elsewhere
+                    continue;
+
+                if (characters.Count == 2 && licences.Count <= 2 && characters.Contains(current.Item1) && licences.Contains(current.Item2))
                 {
-                    imageCharacs.OrderBy(x => x);
-                    string c1 = Regex.Replace(imageCharacs[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
-                    string c2 = Regex.Replace(imageCharacs[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
+                    characters.OrderBy(x => x);
 
-                    if (c1.Contains("admiral") || c2.Contains("admiral")) // TODO: Put that elsewhere
-                        continue;
+                    var otherLicence = licences.Where(x => x != current.Item2).FirstOrDefault()?.Replace("_", ""); // Will be null if it's not a crossover
 
-                    if (!allEntries.ContainsKey(c1))
-                        allEntries.Add(c1, new Dictionary<string, List<Entry>>());
+                    string licenceName = otherLicence == null ? current.Item2 : "crossover";
 
-                    if (!allEntries[c1].ContainsKey(c2))
-                        allEntries[c1].Add(c2, new List<Entry>());
+                    string c1 = Regex.Replace(characters[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
+                    string c2 = Regex.Replace(characters[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
 
-                    if (allEntries[c1][c2].Count < 3)
-                        allEntries[c1][c2].Add(
+                    if (otherLicence != null) // Crossover
+                    {
+                        if (c1 == current.Item1)
+                            c1 = current.Item2 + "_" + c1;
+                        else
+                            c1 = otherLicence + "_" + c1;
+
+                        if (c2 == current.Item1)
+                            c2 = current.Item2 + "_" + c2;
+                        else
+                            c2 = otherLicence + "_" + c2;
+                    }
+
+                    if (!allEntries.ContainsKey(licenceName))
+                        allEntries.Add(licenceName, new Json()
+                        {
+                            name = licenceName,
+                            ships = new Dictionary<string, Dictionary<string, List<Entry>>>(),
+                            color = $"#{rand.Next(127, 256).ToString("x2")}{rand.Next(127, 256).ToString("x2")}{rand.Next(127, 256).ToString("x2")}"
+                        });
+
+                    if (!allEntries[licenceName].ships.ContainsKey(c1))
+                        allEntries[licenceName].ships.Add(c1, new Dictionary<string, List<Entry>>());
+
+                    if (!allEntries[licenceName].ships[c1].ContainsKey(c2))
+                        allEntries[licenceName].ships[c1].Add(c2, new List<Entry>());
+
+                    if (allEntries[licenceName].ships[c1][c2].Count <= 3)
+                        allEntries[licenceName].ships[c1][c2].Add(
                             new Entry
                             {
                                 link = r.postUrl.AbsoluteUri,
@@ -100,25 +141,28 @@ namespace Ship_booru
                                 nsfw = (int)r.rating
                             });
 
-                    foreach (string s in imageCharacs)
+                    foreach (var s in characters)
                     {
                         if (!charactersAlreadyAsked.Contains(s))
                         {
                             charactersAlreadyAsked.Add(s);
-                            remainingCharacters.Add(s);
+                            remainingCharacters.Add((s, otherLicence ?? licences[0]));
                         }
                     }
 
-                    Console.WriteLine($"Found relation between {c1} and {c2}.");
+                    Console.WriteLine($"Found relation between {c1} and {c2}. ({licenceName})");
                 }
             }
 
-            File.WriteAllText(entryAnime + ".json", JsonConvert.SerializeObject(new Json
+            foreach (var j in allEntries)
             {
-                color = "lightblue",
-                name = entryAnime,
-                ships = allEntries
-            }));
+                File.WriteAllText("Result/" + j.Key + ".json", JsonConvert.SerializeObject(j.Value));
+            }
+
+            var d = new Dictionary<string, string[]>();
+            d.Add("names", allEntries.Select(x => x.Key).ToArray());
+
+            File.WriteAllText("Result/names.json", JsonConvert.SerializeObject(d));
 
             Console.WriteLine("JSON saved\n\n");
 
