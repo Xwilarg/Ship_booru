@@ -89,7 +89,7 @@ namespace Ship_booru
                         licences.Add(t);
                 }
 
-                if (characters.Any(x => x.Contains("admiral"))) // TODO: Put that elsewhere
+                if (characters.Any(x => x.Contains("admiral") || licences.Contains("original"))) // TODO: Put that elsewhere
                     continue;
 
                 if (characters.Count == 2 && licences.Count <= 2 && characters.Contains(current.Item1) && licences.Contains(current.Item2))
