@@ -99,22 +99,33 @@ namespace Ship_booru
 
                     var otherLicence = licences.Where(x => x != current.Item2).FirstOrDefault()?.Replace("_", ""); // Will be null if it's not a crossover
 
-                    string licenceName = otherLicence == null ? current.Item2 : "crossover";
+                    string licenceName = otherLicence == null ? current.Item2.Replace("_", "") : "crossover";
 
-                    string c1 = Regex.Replace(characters[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
-                    string c2 = Regex.Replace(characters[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
+                    string c1, c2;
 
                     if (otherLicence != null) // Crossover
                     {
-                        if (c1 == current.Item1)
-                            c1 = current.Item2 + "_" + c1;
-                        else
-                            c1 = otherLicence + "_" + c1;
+                        var a = Regex.Replace(characters[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
+                        var b = Regex.Replace(characters[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
 
-                        if (c2 == current.Item1)
-                            c2 = current.Item2 + "_" + c2;
+                        if (a == current.Item1)
+                        {
+                            a = current.Item2 + "_" + a;
+                            b = otherLicence + "_" + b;
+                        }
                         else
-                            c2 = otherLicence + "_" + c2;
+                        {
+                            b = current.Item2 + "_" + b;
+                            a = otherLicence + "_" + a;
+                        }
+
+                        c1 = string.Compare(a, b) < 0 ? a : b;
+                        c2 = string.Compare(a, b) < 0 ? b : a;
+                    }
+                    else
+                    {
+                        c1 = Regex.Replace(characters[0], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
+                        c2 = Regex.Replace(characters[1], "\\([^\\)]+\\)", "").Replace('_', ' ').Trim();
                     }
 
                     if (!allEntries.ContainsKey(licenceName))
@@ -131,7 +142,7 @@ namespace Ship_booru
                     if (!allEntries[licenceName].ships[c1].ContainsKey(c2))
                         allEntries[licenceName].ships[c1].Add(c2, new List<Entry>());
 
-                    if (allEntries[licenceName].ships[c1][c2].Count <= 3)
+                    if (allEntries[licenceName].ships[c1][c2].Count < 3)
                         allEntries[licenceName].ships[c1][c2].Add(
                             new Entry
                             {
@@ -160,7 +171,7 @@ namespace Ship_booru
             }
 
             var d = new Dictionary<string, string[]>();
-            d.Add("names", allEntries.Select(x => x.Key).ToArray());
+            d.Add("names", allEntries.Select(x => x.Key).Where(x => x != "crossover").ToArray());
 
             File.WriteAllText("Result/names.json", JsonConvert.SerializeObject(d));
 
