@@ -109,8 +109,8 @@ namespace Ship_booru
 
                         if (a == current.Item1)
                         {
-                            a = otherLicence + "_" + a;
-                            b = current.Item2.Replace("_", "") + "_" + b;
+                            a = current.Item2.Replace("_", "") + "_" + a;
+                            b = otherLicence + "_" + b;
                         }
                         else
                         {
