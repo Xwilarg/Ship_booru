@@ -110,13 +110,13 @@ namespace Ship_booru
 
                         if (a == current.Item1)
                         {
-                            a = current.Item2 + "_" + a;
+                            a = current.Item2.Replace("_", "") + "_" + a;
                             b = otherLicence + "_" + b;
                         }
                         else
                         {
-                            b = current.Item2 + "_" + b;
-                            a = otherLicence + "_" + a;
+                            b = otherLicence  + "_" + b;
+                            a = current.Item2.Replace("_", "") + "_" + a;
                         }
 
                         c1 = string.Compare(a, b) < 0 ? a : b;
