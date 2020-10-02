@@ -4,7 +4,6 @@ using BooruSharp.Search.Tag;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -115,8 +114,8 @@ namespace Ship_booru
                         }
                         else
                         {
-                            b = otherLicence  + "_" + b;
-                            a = current.Item2.Replace("_", "") + "_" + a;
+                            a = otherLicence + "_" + a;
+                            b = current.Item2.Replace("_", "") + "_" + b;
                         }
 
                         c1 = string.Compare(a, b) < 0 ? a : b;
